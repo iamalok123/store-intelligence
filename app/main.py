@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from app.database import init_db, get_db
 from app.models import HealthResponse, MetricsResponse, FunnelResponse, HeatmapResponse, AnomaliesResponse, IngestRequest, IngestResponse
@@ -24,7 +24,10 @@ def health():
 
 @app.post("/events/ingest", response_model=IngestResponse)
 async def ingest_events(request: Request, db: Session = Depends(get_db)):
-    payload = await request.json()
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
     return process_ingestion(payload, db)
 
 @app.get("/stores/{store_id}/metrics", response_model=MetricsResponse)
