@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import init_db, get_db
 from app.models import HealthResponse, MetricsResponse, FunnelResponse, HeatmapResponse, AnomaliesResponse, IngestRequest, IngestResponse
 from app.ingestion import process_ingestion
+from app.metrics import get_store_metrics
 
 # Initialize DB on startup
 init_db()
@@ -31,15 +32,8 @@ async def ingest_events(request: Request, db: Session = Depends(get_db)):
     return process_ingestion(payload, db)
 
 @app.get("/stores/{store_id}/metrics", response_model=MetricsResponse)
-def get_metrics(store_id: str):
-    return {
-        "store_id": store_id,
-        "unique_visitors": 0,
-        "conversion_rate": 0,
-        "avg_dwell_per_zone": {},
-        "current_queue_depth": 0,
-        "abandonment_rate": 0
-    }
+def get_metrics(store_id: str, db: Session = Depends(get_db)):
+    return get_store_metrics(store_id, db)
 
 @app.get("/stores/{store_id}/funnel", response_model=FunnelResponse)
 def get_funnel(store_id: str):

@@ -28,15 +28,15 @@ def override_get_db():
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def setup_db():
+    app.dependency_overrides[get_db] = override_get_db
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
+    app.dependency_overrides.clear()
 
 def test_valid_event_accepted():
     payload = {
@@ -57,7 +57,7 @@ def test_valid_event_accepted():
     response = client.post("/events/ingest", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["accepted"] == 1
+    assert data["accepted"] == 1, data
     assert data["rejected"] == 0
     assert data["duplicates"] == 0
     assert len(data["errors"]) == 0
@@ -157,7 +157,7 @@ def test_batch_partial_success():
     }
     response = client.post("/events/ingest", json=payload)
     data = response.json()
-    assert data["accepted"] == 1
+    assert data["accepted"] == 1, data
     assert data["rejected"] == 1
     assert data["duplicates"] == 0
     assert len(data["errors"]) == 1
