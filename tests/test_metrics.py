@@ -1,12 +1,3 @@
-# PROMPT:
-# Generate pytest tests for store metrics calculation including unique visitors,
-# staff exclusion, average dwell by zone, queue depth, abandonment rate,
-# zero visitor stores, and zero purchase stores.
-#
-# CHANGES MADE:
-# I replaced generic fixtures with challenge-specific event types,
-# added all-staff and empty-store cases, and verified no null metrics are returned.
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

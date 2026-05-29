@@ -4,6 +4,7 @@ from app.database import init_db, get_db
 from app.models import HealthResponse, MetricsResponse, FunnelResponse, HeatmapResponse, AnomaliesResponse, IngestRequest, IngestResponse
 from app.ingestion import process_ingestion
 from app.metrics import get_store_metrics
+from app.funnel import get_store_funnel
 
 # Initialize DB on startup
 init_db()
@@ -36,12 +37,8 @@ def get_metrics(store_id: str, db: Session = Depends(get_db)):
     return get_store_metrics(store_id, db)
 
 @app.get("/stores/{store_id}/funnel", response_model=FunnelResponse)
-def get_funnel(store_id: str):
-    return {
-        "store_id": store_id,
-        "stages": {"entry": 0, "zone_visit": 0, "billing_queue": 0, "purchase": 0},
-        "dropoffs": {}
-    }
+def get_funnel(store_id: str, db: Session = Depends(get_db)):
+    return get_store_funnel(store_id, db)
 
 @app.get("/stores/{store_id}/heatmap", response_model=HeatmapResponse)
 def get_heatmap(store_id: str):
