@@ -1,6 +1,8 @@
-from fastapi import FastAPI
-from app.database import init_db
+from fastapi import FastAPI, Depends, Request
+from sqlalchemy.orm import Session
+from app.database import init_db, get_db
 from app.models import HealthResponse, MetricsResponse, FunnelResponse, HeatmapResponse, AnomaliesResponse, IngestRequest, IngestResponse
+from app.ingestion import process_ingestion
 
 # Initialize DB on startup
 init_db()
@@ -21,13 +23,9 @@ def health():
     }
 
 @app.post("/events/ingest", response_model=IngestResponse)
-def ingest_events(request: IngestRequest):
-    return {
-        "accepted": len(request.events),
-        "rejected": 0,
-        "duplicates": 0,
-        "errors": []
-    }
+async def ingest_events(request: Request, db: Session = Depends(get_db)):
+    payload = await request.json()
+    return process_ingestion(payload, db)
 
 @app.get("/stores/{store_id}/metrics", response_model=MetricsResponse)
 def get_metrics(store_id: str):
