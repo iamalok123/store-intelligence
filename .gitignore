@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+store_intelligence.db
+data/clips/
+data/events.jsonl
+.coverage
+htmlcov/
+node_modules/
+dist/
+IMPLEMENTATION.md
