@@ -1,0 +1,30 @@
+{
+  "stores": [
+    {
+      "store_id": "STORE_BLR_002",
+      "open_hours": {
+        "start": "10:00",
+        "end": "22:00"
+      },
+      "cameras": [
+        {
+          "camera_id": "CAM_ENTRY_01",
+          "type": "entry",
+          "zones": []
+        }
+      ],
+      "zones": [
+        {
+          "zone_id": "SKINCARE",
+          "polygon": [
+            [100, 100],
+            [400, 100],
+            [400, 400],
+            [100, 400]
+          ],
+          "sku_zone": "MOISTURISER"
+        }
+      ]
+    }
+  ]
+}
