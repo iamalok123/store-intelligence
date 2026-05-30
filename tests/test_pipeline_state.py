@@ -50,3 +50,34 @@ def test_zone_generation():
     assert len(events) == 1
     assert events[0]["event_type"] == "ZONE_EXIT"
     assert events[0]["zone_id"] == "MAKEUP"
+
+from datetime import timedelta
+
+def test_zone_dwell():
+    tracker = VisitorStateTracker("STORE_1", "CAM_1")
+    visitor_id = "VIS_01"
+    
+    # Enter SKINCARE at T=0
+    ts0 = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
+    tracker.update_zone(visitor_id, "SKINCARE", ts0)
+    
+    # At T=20s, no dwell
+    ts1 = ts0 + timedelta(seconds=20)
+    events = tracker.update_zone(visitor_id, "SKINCARE", ts1)
+    assert len(events) == 0
+    
+    # At T=30s, one dwell
+    ts2 = ts0 + timedelta(seconds=30)
+    events = tracker.update_zone(visitor_id, "SKINCARE", ts2)
+    assert len(events) == 1
+    assert events[0]["event_type"] == "ZONE_DWELL"
+    assert events[0]["zone_id"] == "SKINCARE"
+    assert events[0]["dwell_ms"] == 30000
+    
+    # At T=60s, second dwell
+    ts3 = ts0 + timedelta(seconds=60)
+    events = tracker.update_zone(visitor_id, "SKINCARE", ts3)
+    assert len(events) == 1
+    assert events[0]["event_type"] == "ZONE_DWELL"
+    assert events[0]["dwell_ms"] == 60000
+
