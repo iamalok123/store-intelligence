@@ -22,9 +22,37 @@ class VisitorStateTracker:
                 "last_zone": None,
                 "last_point": None,
                 "zone_enter_time": None,
-                "last_dwell_time": None
+                "last_dwell_time": None,
+                "first_seen_time": None,
+                "zones_visited": set(),
+                "billing_visits": 0,
+                "entry_exits": 0,
+                "is_staff": False
             }
         return self.visitor_state[visitor_id]
+
+    def _check_staff_status(self, state, timestamp):
+        if state["is_staff"]:
+            return True
+        
+        if state["first_seen_time"] is None:
+            return False
+            
+        score = 0
+        duration_minutes = (timestamp - state["first_seen_time"]).total_seconds() / 60.0
+        if duration_minutes > 8:
+            score += 2
+        if len(state["zones_visited"]) >= 4:
+            score += 1
+        if state["billing_visits"] >= 5:
+            score += 1
+        if state["entry_exits"] >= 3: # Let's say 3 times means many times
+            score += 1
+            
+        if score >= 3:
+            state["is_staff"] = True
+            
+        return state["is_staff"]
 
     def update_position(self, visitor_id, current_point, timestamp, entry_line=None):
         """
@@ -32,7 +60,11 @@ class VisitorStateTracker:
         Returns a list of generated events.
         """
         state = self._get_state(visitor_id)
+        if state["first_seen_time"] is None:
+            state["first_seen_time"] = timestamp
+            
         events = []
+        is_staff = self._check_staff_status(state, timestamp)
         
         last_point = state["last_point"]
         
@@ -42,10 +74,14 @@ class VisitorStateTracker:
                 
                 if direction == "ENTRY" and not state["inside"]:
                     state["inside"] = True
-                    events.append(make_event(self.store_id, self.camera_id, visitor_id, "ENTRY", timestamp))
+                    state["entry_exits"] += 1
+                    is_staff = self._check_staff_status(state, timestamp)
+                    events.append(make_event(self.store_id, self.camera_id, visitor_id, "ENTRY", timestamp, is_staff=is_staff))
                 elif direction == "EXIT" and state["inside"]:
                     state["inside"] = False
-                    events.append(make_event(self.store_id, self.camera_id, visitor_id, "EXIT", timestamp))
+                    state["entry_exits"] += 1
+                    is_staff = self._check_staff_status(state, timestamp)
+                    events.append(make_event(self.store_id, self.camera_id, visitor_id, "EXIT", timestamp, is_staff=is_staff))
 
         state["last_point"] = current_point
         return events
@@ -56,19 +92,29 @@ class VisitorStateTracker:
         Returns a list of generated events.
         """
         state = self._get_state(visitor_id)
+        if state["first_seen_time"] is None:
+            state["first_seen_time"] = timestamp
+            
         events = []
+        is_staff = self._check_staff_status(state, timestamp)
         
         last_zone = state["last_zone"]
         
         # Check zone change
         if last_zone != current_zone:
             if last_zone is not None:
-                events.append(make_event(self.store_id, self.camera_id, visitor_id, "ZONE_EXIT", timestamp, zone_id=last_zone))
+                events.append(make_event(self.store_id, self.camera_id, visitor_id, "ZONE_EXIT", timestamp, zone_id=last_zone, is_staff=is_staff))
                 if last_zone == "BILLING" and visitor_id in self.billing_visitors:
                     self.billing_visitors.remove(visitor_id)
             
             if current_zone is not None:
-                events.append(make_event(self.store_id, self.camera_id, visitor_id, "ZONE_ENTER", timestamp, zone_id=current_zone))
+                state["zones_visited"].add(current_zone)
+                if current_zone == "BILLING":
+                    state["billing_visits"] += 1
+                
+                is_staff = self._check_staff_status(state, timestamp)
+                
+                events.append(make_event(self.store_id, self.camera_id, visitor_id, "ZONE_ENTER", timestamp, zone_id=current_zone, is_staff=is_staff))
                 state["zone_enter_time"] = timestamp
                 state["last_dwell_time"] = timestamp
                 
@@ -83,7 +129,8 @@ class VisitorStateTracker:
                             "BILLING_QUEUE_JOIN", 
                             timestamp, 
                             zone_id="BILLING",
-                            metadata={"queue_depth": queue_depth}
+                            metadata={"queue_depth": queue_depth},
+                            is_staff=is_staff
                         ))
             else:
                 state["zone_enter_time"] = None
@@ -101,11 +148,9 @@ class VisitorStateTracker:
                         "ZONE_DWELL", 
                         timestamp, 
                         zone_id=current_zone,
-                        dwell_ms=dwell_ms
+                        dwell_ms=dwell_ms,
+                        is_staff=is_staff
                     ))
-                    # Update last_dwell_time so we fire again in 30s
-                    # We can advance it by exactly 30s, or just set it to the current timestamp.
-                    # Setting to current timestamp ensures the next dwell happens 30s from *now*.
                     state["last_dwell_time"] = timestamp
                 
         state["last_zone"] = current_zone

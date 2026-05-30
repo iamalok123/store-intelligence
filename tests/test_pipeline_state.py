@@ -111,3 +111,30 @@ def test_billing_queue_events():
     tracker.update_zone("VIS_01", None, ts)
     assert len(tracker.billing_visitors) == 2
 
+def test_staff_detection():
+    tracker = VisitorStateTracker("STORE_1", "CAM_1")
+    visitor_id = "VIS_01"
+    ts = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
+
+    # Short visitor (no staff)
+    tracker.update_zone(visitor_id, "SKINCARE", ts)
+    tracker.update_position(visitor_id, (100, 50), ts, [(0, 100), (200, 100)]) # Outside
+    events = tracker.update_position(visitor_id, (100, 150), ts, [(0, 100), (200, 100)]) # Crosses to Inside (ENTRY)
+    assert len(events) == 1
+    assert events[0]["is_staff"] is False
+
+    # Simulate long duration (score +2)
+    ts_long = ts + timedelta(minutes=10)
+    tracker.update_zone(visitor_id, "MAKEUP", ts_long)
+    
+    # Simulate many zones visited (score +1, total 3 -> is_staff=True)
+    tracker.update_zone(visitor_id, "PERFUME", ts_long)
+    tracker.update_zone(visitor_id, "CASHIER", ts_long)
+    
+    tracker.update_position(visitor_id, (100, 150), ts_long, [(0, 100), (200, 100)]) # Inside
+    events = tracker.update_position(visitor_id, (100, 50), ts_long, [(0, 100), (200, 100)]) # Crosses to Outside (EXIT)
+    # The exit event should be flagged as staff
+    assert len(events) == 1
+    assert events[0]["is_staff"] is True
+
+
