@@ -5,6 +5,10 @@ from pipeline.zones import (
     crossed_entry_line,
     determine_direction
 )
+from pipeline.emit import make_event, validate_event_with_api_schema, write_event_jsonl
+from datetime import datetime
+import tempfile
+import os
 
 def test_point_inside_polygon():
     polygon = [[100, 100], [400, 100], [400, 400], [100, 400]]
@@ -39,3 +43,45 @@ def test_entry_line_crossing_direction():
     
     assert crossed_entry_line(prev_point2, curr_point2, line) is True
     assert determine_direction(prev_point2, curr_point2, line) == "EXIT"
+
+def test_make_event_and_validate():
+    # Create event
+    event = make_event(
+        store_id="STORE_1",
+        camera_id="CAM_1",
+        visitor_id="v_1",
+        event_type="ENTRY",
+        timestamp=datetime(2026, 3, 3, 10, 0, 0),
+        zone_id="Z1",
+        dwell_ms=1000,
+        is_staff=False,
+        confidence=0.95,
+        metadata={"key": "value"}
+    )
+    
+    # Check fields exist
+    assert "event_id" in event
+    assert event["store_id"] == "STORE_1"
+    assert event["confidence"] == 0.95
+    assert event["metadata"] == {"key": "value"}
+    
+    # Validate with API schema
+    validated = validate_event_with_api_schema(event)
+    assert validated["store_id"] == "STORE_1"
+
+def test_event_id_unique():
+    e1 = make_event("S1", "C1", "v1", "ENTRY", datetime.utcnow())
+    e2 = make_event("S1", "C1", "v1", "ENTRY", datetime.utcnow())
+    assert e1["event_id"] != e2["event_id"]
+
+def test_write_event_jsonl():
+    e = make_event("S1", "C1", "v1", "ENTRY", datetime.utcnow())
+    tmp = tempfile.mktemp(suffix=".jsonl")
+    write_event_jsonl(e, tmp)
+    
+    assert os.path.exists(tmp)
+    with open(tmp, "r") as f:
+        line = f.read()
+        assert "event_id" in line
+        assert "S1" in line
+    os.remove(tmp)
