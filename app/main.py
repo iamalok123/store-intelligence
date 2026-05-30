@@ -41,11 +41,9 @@ def get_funnel(store_id: str, db: Session = Depends(get_db)):
     return get_store_funnel(store_id, db)
 
 @app.get("/stores/{store_id}/heatmap", response_model=HeatmapResponse)
-def get_heatmap(store_id: str):
-    return {
-        "store_id": store_id,
-        "zones": []
-    }
+def get_heatmap(store_id: str, db: Session = Depends(get_db)):
+    from app.heatmap import get_store_heatmap
+    return get_store_heatmap(store_id, db)
 
 @app.get("/stores/{store_id}/anomalies", response_model=AnomaliesResponse)
 def get_anomalies(store_id: str):
