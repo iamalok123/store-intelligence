@@ -46,8 +46,6 @@ def get_heatmap(store_id: str, db: Session = Depends(get_db)):
     return get_store_heatmap(store_id, db)
 
 @app.get("/stores/{store_id}/anomalies", response_model=AnomaliesResponse)
-def get_anomalies(store_id: str):
-    return {
-        "store_id": store_id,
-        "anomalies": []
-    }
+def get_anomalies(store_id: str, db: Session = Depends(get_db)):
+    from app.anomalies import get_store_anomalies
+    return get_store_anomalies(store_id, db)
