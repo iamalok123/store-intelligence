@@ -9,20 +9,19 @@ from app.funnel import get_store_funnel
 # Initialize DB on startup
 init_db()
 
+from app.logging_config import setup_logging
+
 app = FastAPI(title="Store Intelligence API")
+setup_logging(app)
 
 @app.get("/")
 def root():
     return {"message": "Store Intelligence API"}
 
 @app.get("/health", response_model=HealthResponse)
-def health():
-    return {
-        "status": "ok",
-        "database": "ok",
-        "last_event_timestamp_per_store": {},
-        "warnings": []
-    }
+def health(db: Session = Depends(get_db)):
+    from app.health import get_health_status
+    return get_health_status(db)
 
 @app.post("/events/ingest", response_model=IngestResponse)
 async def ingest_events(request: Request, db: Session = Depends(get_db)):
