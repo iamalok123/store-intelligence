@@ -18,3 +18,12 @@ class EventDB(Base):
     confidence = Column(Float)
     metadata_json = Column(String)
     created_at = Column(DateTime)
+
+class PosTransactionDB(Base):
+    __tablename__ = "pos_transactions"
+    
+    transaction_id = Column(String, primary_key=True)
+    store_id = Column(String, index=True)
+    timestamp = Column(DateTime, index=True)
+    basket_value_inr = Column(Float)
+    matched_visitor_id = Column(String, nullable=True)
