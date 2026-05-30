@@ -6,6 +6,7 @@ class VisitorStateTracker:
         self.store_id = store_id
         self.camera_id = camera_id
         self.visitor_state = {}
+        self.billing_visitors = set()
         # {
         #   visitor_id: {
         #     "inside": False,
@@ -63,10 +64,27 @@ class VisitorStateTracker:
         if last_zone != current_zone:
             if last_zone is not None:
                 events.append(make_event(self.store_id, self.camera_id, visitor_id, "ZONE_EXIT", timestamp, zone_id=last_zone))
+                if last_zone == "BILLING" and visitor_id in self.billing_visitors:
+                    self.billing_visitors.remove(visitor_id)
+            
             if current_zone is not None:
                 events.append(make_event(self.store_id, self.camera_id, visitor_id, "ZONE_ENTER", timestamp, zone_id=current_zone))
                 state["zone_enter_time"] = timestamp
                 state["last_dwell_time"] = timestamp
+                
+                if current_zone == "BILLING":
+                    queue_depth = len(self.billing_visitors)
+                    self.billing_visitors.add(visitor_id)
+                    if queue_depth > 0:
+                        events.append(make_event(
+                            self.store_id, 
+                            self.camera_id, 
+                            visitor_id, 
+                            "BILLING_QUEUE_JOIN", 
+                            timestamp, 
+                            zone_id="BILLING",
+                            metadata={"queue_depth": queue_depth}
+                        ))
             else:
                 state["zone_enter_time"] = None
                 state["last_dwell_time"] = None

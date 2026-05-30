@@ -81,3 +81,33 @@ def test_zone_dwell():
     assert events[0]["event_type"] == "ZONE_DWELL"
     assert events[0]["dwell_ms"] == 60000
 
+def test_billing_queue_events():
+    tracker = VisitorStateTracker("STORE_1", "CAM_1")
+    ts = datetime.now(UTC)
+
+    # Visitor 1 enters BILLING
+    events = tracker.update_zone("VIS_01", "BILLING", ts)
+    # They should just get ZONE_ENTER, no BILLING_QUEUE_JOIN since queue_depth was 0
+    event_types = [e["event_type"] for e in events]
+    assert "ZONE_ENTER" in event_types
+    assert "BILLING_QUEUE_JOIN" not in event_types
+
+    # Visitor 2 enters BILLING
+    events2 = tracker.update_zone("VIS_02", "BILLING", ts)
+    event_types2 = [e["event_type"] for e in events2]
+    assert "ZONE_ENTER" in event_types2
+    assert "BILLING_QUEUE_JOIN" in event_types2
+    
+    # Check queue depth metadata
+    join_event = next(e for e in events2 if e["event_type"] == "BILLING_QUEUE_JOIN")
+    assert join_event["metadata"]["queue_depth"] == 1
+
+    # Visitor 3 enters BILLING
+    events3 = tracker.update_zone("VIS_03", "BILLING", ts)
+    join_event3 = next(e for e in events3 if e["event_type"] == "BILLING_QUEUE_JOIN")
+    assert join_event3["metadata"]["queue_depth"] == 2
+    
+    # Visitor 1 leaves BILLING
+    tracker.update_zone("VIS_01", None, ts)
+    assert len(tracker.billing_visitors) == 2
+
