@@ -7,6 +7,8 @@ class VisitorStateTracker:
         self.camera_id = camera_id
         self.visitor_state = {}
         self.billing_visitors = set()
+        self.recent_exits = []
+        self.visitor_alias = {}
         # {
         #   visitor_id: {
         #     "inside": False,
@@ -54,11 +56,17 @@ class VisitorStateTracker:
             
         return state["is_staff"]
 
+    def _resolve_id(self, visitor_id):
+        return self.visitor_alias.get(visitor_id, visitor_id)
+
     def update_position(self, visitor_id, current_point, timestamp, entry_line=None):
         """
         Updates the position for a visitor and generates ENTRY/EXIT events if an entry line is provided.
         Returns a list of generated events.
         """
+        original_visitor_id = visitor_id
+        visitor_id = self._resolve_id(visitor_id)
+        
         state = self._get_state(visitor_id)
         if state["first_seen_time"] is None:
             state["first_seen_time"] = timestamp
@@ -73,15 +81,43 @@ class VisitorStateTracker:
                 direction = determine_direction(last_point, current_point, entry_line)
                 
                 if direction == "ENTRY" and not state["inside"]:
-                    state["inside"] = True
-                    state["entry_exits"] += 1
-                    is_staff = self._check_staff_status(state, timestamp)
-                    events.append(make_event(self.store_id, self.camera_id, visitor_id, "ENTRY", timestamp, is_staff=is_staff))
+                    # Check for reentry
+                    reentry_id = None
+                    for exit_record in self.recent_exits:
+                        dt = (timestamp - exit_record["exit_time"]).total_seconds() / 60.0
+                        if dt <= 5.0: # Reentry within 5 minutes
+                            # Could check distance or color hist here
+                            reentry_id = exit_record["visitor_id"]
+                            break
+                            
+                    if reentry_id:
+                        # Map to the old ID
+                        self.visitor_alias[original_visitor_id] = reentry_id
+                        visitor_id = reentry_id
+                        state = self._get_state(visitor_id)
+                        state["inside"] = True
+                        state["entry_exits"] += 1
+                        is_staff = self._check_staff_status(state, timestamp)
+                        events.append(make_event(self.store_id, self.camera_id, visitor_id, "REENTRY", timestamp, is_staff=is_staff))
+                    else:
+                        state["inside"] = True
+                        state["entry_exits"] += 1
+                        is_staff = self._check_staff_status(state, timestamp)
+                        events.append(make_event(self.store_id, self.camera_id, visitor_id, "ENTRY", timestamp, is_staff=is_staff))
                 elif direction == "EXIT" and state["inside"]:
                     state["inside"] = False
                     state["entry_exits"] += 1
                     is_staff = self._check_staff_status(state, timestamp)
                     events.append(make_event(self.store_id, self.camera_id, visitor_id, "EXIT", timestamp, is_staff=is_staff))
+                    
+                    self.recent_exits.append({
+                        "visitor_id": visitor_id,
+                        "exit_time": timestamp,
+                        "last_point": current_point
+                    })
+                    
+                    # Cleanup old exits
+                    self.recent_exits = [e for e in self.recent_exits if (timestamp - e["exit_time"]).total_seconds() / 60.0 <= 5.0]
 
         state["last_point"] = current_point
         return events
@@ -91,6 +127,7 @@ class VisitorStateTracker:
         Updates the zone for a visitor and generates ZONE_ENTER/ZONE_EXIT and ZONE_DWELL events.
         Returns a list of generated events.
         """
+        visitor_id = self._resolve_id(visitor_id)
         state = self._get_state(visitor_id)
         if state["first_seen_time"] is None:
             state["first_seen_time"] = timestamp

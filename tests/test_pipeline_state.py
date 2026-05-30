@@ -137,4 +137,39 @@ def test_staff_detection():
     assert len(events) == 1
     assert events[0]["is_staff"] is True
 
+def test_reentry_handling():
+    tracker = VisitorStateTracker("STORE_1", "CAM_1")
+    ts1 = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
+
+    # VIS_01 Enters
+    tracker.update_position("VIS_01", (100, 50), ts1, [(0, 100), (200, 100)])
+    events_enter = tracker.update_position("VIS_01", (100, 150), ts1, [(0, 100), (200, 100)])
+    assert events_enter[0]["event_type"] == "ENTRY"
+
+    # VIS_01 Exits at 10:02
+    ts2 = ts1 + timedelta(minutes=2)
+    events_exit = tracker.update_position("VIS_01", (100, 50), ts2, [(0, 100), (200, 100)])
+    assert events_exit[0]["event_type"] == "EXIT"
+
+    # VIS_02 Enters at 10:04 (2 mins later -> REENTRY)
+    ts3 = ts1 + timedelta(minutes=4)
+    tracker.update_position("VIS_02", (100, 50), ts3, [(0, 100), (200, 100)])
+    events_reenter = tracker.update_position("VIS_02", (100, 150), ts3, [(0, 100), (200, 100)])
+    
+    assert events_reenter[0]["event_type"] == "REENTRY"
+    assert events_reenter[0]["visitor_id"] == "VIS_01" # Should be aliased
+    
+    # Check that update_zone works with alias
+    zone_events = tracker.update_zone("VIS_02", "PERFUME", ts3)
+    assert zone_events[0]["visitor_id"] == "VIS_01"
+
+    # VIS_03 Enters at 10:15 (11 mins after exit -> NEW ENTRY)
+    ts4 = ts2 + timedelta(minutes=11)
+    tracker.update_position("VIS_03", (100, 50), ts4, [(0, 100), (200, 100)])
+    events_new = tracker.update_position("VIS_03", (100, 150), ts4, [(0, 100), (200, 100)])
+    
+    assert events_new[0]["event_type"] == "ENTRY"
+    assert events_new[0]["visitor_id"] == "VIS_03"
+
+
 
