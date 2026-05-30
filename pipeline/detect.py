@@ -26,6 +26,8 @@ def main():
         sys.exit(1)
 
     frame_idx = 0
+    track_to_visitor = {}
+    visitor_seq = 0
     
     while True:
         ret, frame = cap.read()
@@ -39,16 +41,29 @@ def main():
             continue
             
         # verbose=False to keep the output clean as required
-        results = model(frame, verbose=False)
+        results = model.track(frame, persist=True, tracker="bytetrack.yaml", verbose=False)
         
         person_count = 0
         for r in results:
-            for box in r.boxes:
-                cls_id = int(box.cls[0])
-                if cls_id == 0:  # class 0 is 'person' in COCO dataset
-                    person_count += 1
-                    
-        print(f"frame={frame_idx} people={person_count}")
+            if r.boxes is not None and r.boxes.id is not None:
+                for box, track_id_tensor in zip(r.boxes, r.boxes.id):
+                    cls_id = int(box.cls[0])
+                    if cls_id == 0:  # person
+                        person_count += 1
+                        track_id = int(track_id_tensor.item())
+                        conf = float(box.conf[0])
+                        xyxy = box.xyxy[0].tolist()
+                        
+                        if track_id not in track_to_visitor:
+                            visitor_seq += 1
+                            track_to_visitor[track_id] = f"VIS_{visitor_seq:06d}"
+                            
+                        visitor_id = track_to_visitor[track_id]
+                        
+                        print(f"frame={frame_idx} track_id={track_id} visitor_id={visitor_id} bbox={xyxy}")
+        
+        # print(f"frame={frame_idx} people={person_count}")
+
         
     cap.release()
     print("Processing complete.")
