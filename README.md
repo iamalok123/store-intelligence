@@ -38,6 +38,13 @@ That's it. `docker compose up` automatically:
 3. **Starts** the React dashboard on port 5173
 4. **Creates** the SQLite database
 
+It also runs a one-shot **seeder** that posts demo events after the API is healthy.
+If data already exists for `STORE_BLR_002`, the seeder skips automatically.
+To force a re-seed, delete `./data/store_intelligence.db` or run:
+```bash
+SEED_FORCE=1 docker compose up
+```
+
 No `--build` flag needed. No `.env` file needed (all environment variables have defaults in `docker-compose.yml`).
 
 After Compose starts:

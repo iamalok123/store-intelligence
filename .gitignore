@@ -48,3 +48,5 @@ npm-debug.log*
 # Implementation guide and scoring (internal)
 IMPLEMENTATION.md
 score.md
+DETAIL.md
+detail.md

@@ -4,11 +4,13 @@ posts them to the API in batches of 100.
 
 Run order:
   1. Waits until GET /health returns HTTP 200 (retries every 2 s, up to 60 s).
-  2. Sends all events via POST /events/ingest.
-  3. Exits 0 on success, 1 on failure.
+    2. Skips seeding if the store already has events (unless SEED_FORCE=1).
+    3. Sends all events via POST /events/ingest.
+    4. Exits 0 on success, 1 on failure.
 """
 
 import json
+import os
 import sys
 import time
 import uuid
@@ -17,8 +19,9 @@ import urllib.error
 from datetime import datetime, timedelta, timezone
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-API_BASE = "http://api:8000"
-STORE_ID = "STORE_BLR_002"
+API_BASE = os.getenv("API_BASE", "http://api:8000")
+STORE_ID = os.getenv("STORE_ID", "STORE_BLR_002")
+SEED_FORCE = os.getenv("SEED_FORCE", "0").strip().lower() in {"1", "true", "yes"}
 CAMERAS  = ["CAM_1", "CAM_2", "CAM_3", "CAM_4", "CAM_5"]
 ZONES    = ["ENTRY", "SKINCARE", "MAKEUP", "FRAGRANCE", "BILLING"]
 
@@ -39,8 +42,7 @@ def ev(visitor_id: str, camera_id: str, event_type: str,
        dwell_ms: int = 0, is_staff: bool = False,
        confidence: float = 0.92, metadata: dict = None) -> dict:
     
-    unique_str = f"{visitor_id}-{event_type}-{offset_min}"
-    event_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, unique_str))
+    event_id = str(uuid.uuid4())
 
     return {
         "event_id":   event_id,
@@ -83,6 +85,30 @@ def wait_for_api(max_wait_s: int = 90) -> None:
         time.sleep(2)
     print(f"[seeder] ERROR: API did not become ready within {max_wait_s}s.", flush=True)
     sys.exit(1)
+
+
+def should_seed() -> bool:
+    if SEED_FORCE:
+        print("[seeder] SEED_FORCE=1 set; seeding regardless of existing data.", flush=True)
+        return True
+    url = f"{API_BASE}/health"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read())
+        last_event = data.get("last_event_timestamp_per_store", {})
+        if STORE_ID in last_event:
+            print(
+                f"[seeder] Found existing events for {STORE_ID} "
+                f"(last at {last_event[STORE_ID]}). Skipping seed.",
+                flush=True,
+            )
+            return False
+    except Exception as exc:
+        print(
+            f"[seeder] WARN: Could not check existing events ({exc}); proceeding to seed.",
+            flush=True,
+        )
+    return True
 
 
 def send_in_batches(events: list, batch_size: int = 100) -> None:
@@ -233,5 +259,7 @@ def build_events() -> list:
 
 if __name__ == "__main__":
     wait_for_api()
+    if not should_seed():
+        sys.exit(0)
     events = build_events()
     send_in_batches(events)

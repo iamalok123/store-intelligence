@@ -362,7 +362,7 @@ The system correlates POS transactions with visitor sessions:
 git clone <repo-url>
 cd store-intelligence
 cp .env.example .env
-docker compose up --build
+docker compose up
 ```
 
 ### Verify

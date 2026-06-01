@@ -30,6 +30,10 @@ services:
     build:
       context: ./scripts
       dockerfile: Dockerfile.seeder
+    environment:
+      API_BASE: ${SEED_API_BASE:-http://api:8000}
+      STORE_ID: ${SEED_STORE_ID:-STORE_BLR_002}
+      SEED_FORCE: ${SEED_FORCE:-0}
     depends_on:
       api:
         condition: service_healthy
