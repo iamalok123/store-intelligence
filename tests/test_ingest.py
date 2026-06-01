@@ -1,7 +1,7 @@
 # PROMPT:
 # Generate pytest tests for FastAPI event ingestion covering valid batch insert,
 # duplicate event_id idempotency, invalid schema, more than 500 events, and partial success.
-#
+
 # CHANGES MADE:
 # I adjusted the generated tests to match our exact EventIn schema,
 # added assertions for database row count, and verified duplicate events are not inserted twice.

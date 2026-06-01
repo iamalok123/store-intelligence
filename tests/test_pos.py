@@ -1,3 +1,11 @@
+# PROMPT:
+# Generate pytest tests for POS correlation that match transactions to visitors
+# seen in the billing zone within five minutes before purchase.
+
+# CHANGES MADE:
+# I added support for the supplied Purplle sales export format, store-code
+# normalization, grouped line items, and conversion-rate assertions.
+
 import pytest
 import tempfile
 import os
@@ -99,5 +107,30 @@ def test_pos_correlation_outside_5_minutes():
     cr = calculate_conversion_rate("STORE_1", db)
     assert cr == 0.0
     
+    os.remove(tmp_csv)
+    db.close()
+
+def test_pos_imports_challenge_sales_export_format():
+    db = TestingSessionLocal()
+    base_time = datetime(2026, 4, 10, 16, 50, 0)
+
+    add_event(db, "STORE_BLR_002", "v1", "ENTRY", base_time - timedelta(minutes=10))
+    add_event(db, "STORE_BLR_002", "v1", "ZONE_ENTER", base_time - timedelta(minutes=2), zone_id="BILLING")
+
+    tmp_csv = tempfile.mktemp(suffix=".csv")
+    with open(tmp_csv, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["order_id", "invoice_type", "order_date", "order_time", "store_id", "store_name", "total_amount"])
+        writer.writerow(["104363838", "sales", "10-04-2026", "16:50:00", "ST1008", "Brigade_Bangalore", "274.36"])
+        writer.writerow(["104363838", "sales", "10-04-2026", "16:50:00", "ST1008", "Brigade_Bangalore", "99.00"])
+
+    load_and_match_pos(db, tmp_csv)
+
+    tx = db.query(PosTransactionDB).filter(PosTransactionDB.transaction_id == "104363838").first()
+    assert tx is not None
+    assert tx.store_id == "STORE_BLR_002"
+    assert tx.matched_visitor_id == "v1"
+    assert tx.basket_value_inr == pytest.approx(373.36)
+
     os.remove(tmp_csv)
     db.close()

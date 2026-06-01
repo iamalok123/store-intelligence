@@ -1,3 +1,12 @@
+# PROMPT:
+# Generate pytest tests for pipeline event helpers covering polygon geometry,
+# bbox center calculation, line crossing, direction detection, schema validation,
+# unique event IDs, and JSONL writing.
+#
+# CHANGES MADE:
+# I adjusted the tests to validate against the API's Pydantic schema and added
+# JSONL round-trip checks so emitted events match ingestion expectations.
+
 import pytest
 from pipeline.zones import (
     point_in_polygon,

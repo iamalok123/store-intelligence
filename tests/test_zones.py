@@ -1,6 +1,6 @@
 # PROMPT:
 # Generate pytest tests for pipeline zone geometry and store layout loading.
-#
+
 # CHANGES MADE:
 # I mocked the json file loading and added tests for point in polygon and line crossing.
 

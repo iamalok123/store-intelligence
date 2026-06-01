@@ -1,6 +1,6 @@
 # PROMPT:
 # Generate pytest tests for pipeline replay_events.py script to cover batch reading and HTTP POST mocking.
-#
+
 # CHANGES MADE:
 # Refactored to test the core logic functions by extracting them from the script or just calling them if they were extractable, or testing via subprocess if needed.
 # Since replay_events.py is likely a script, I'll mock `urllib.request.urlopen` and run the script's main function if it exists.

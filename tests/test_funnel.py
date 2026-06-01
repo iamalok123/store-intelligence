@@ -3,13 +3,14 @@
 # Entry to Zone Visit to Billing Queue to Purchase.
 # Include re-entry deduplication, staff exclusion, repeated events,
 # and divide-by-zero cases.
-#
+
 # CHANGES MADE:
 # I changed the tests to use visitor_id as the session key,
 # added REENTRY events to ensure no double-counting,
 # and added repeated ZONE_DWELL events for the same visitor.
 
 import pytest
+from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -17,6 +18,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.database import Base, get_db
+from app.db_models import EventDB, PosTransactionDB
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -185,3 +187,49 @@ def test_drop_off_percentages_are_correct():
     
     assert data["dropoffs"]["billing_to_purchase"]["count"] == 1
     assert data["dropoffs"]["billing_to_purchase"]["percent"] == 100.0
+
+def test_funnel_purchase_stage_uses_pos_matches():
+    db = TestingSessionLocal()
+    db.add(EventDB(
+        event_id="550e8400-e29b-41d4-a716-446655440016",
+        store_id="STORE_BLR_002",
+        camera_id="CAM_01",
+        visitor_id="VIS_BUYER",
+        event_type="ENTRY",
+        timestamp=datetime(2026, 3, 3, 14, 0, 0),
+        zone_id=None,
+        dwell_ms=0,
+        is_staff=False,
+        confidence=0.9,
+        metadata_json="{}",
+    ))
+    db.add(EventDB(
+        event_id="550e8400-e29b-41d4-a716-446655440017",
+        store_id="STORE_BLR_002",
+        camera_id="CAM_01",
+        visitor_id="VIS_BUYER",
+        event_type="BILLING_QUEUE_JOIN",
+        timestamp=datetime(2026, 3, 3, 14, 5, 0),
+        zone_id="BILLING",
+        dwell_ms=0,
+        is_staff=False,
+        confidence=0.9,
+        metadata_json='{"queue_depth": 1}',
+    ))
+    db.add(PosTransactionDB(
+        transaction_id="TXN_TEST",
+        store_id="STORE_BLR_002",
+        timestamp=datetime(2026, 3, 3, 14, 6, 0),
+        basket_value_inr=500.0,
+        matched_visitor_id="VIS_BUYER",
+    ))
+    db.commit()
+    db.close()
+
+    response = client.get("/stores/STORE_BLR_002/funnel")
+    data = response.json()
+
+    assert data["stages"]["entry"] == 1
+    assert data["stages"]["billing_queue"] == 1
+    assert data["stages"]["purchase"] == 1
+    assert data["dropoffs"]["billing_to_purchase"]["count"] == 0

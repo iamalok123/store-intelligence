@@ -1,3 +1,11 @@
+# PROMPT:
+# Generate pytest tests for the health endpoint covering empty databases,
+# stale-feed warnings, fresh feeds, and database status reporting.
+
+# CHANGES MADE:
+# I adapted the tests to use the app's SQLite event model, override FastAPI
+# dependencies with an in-memory DB, and verify STALE_FEED details per store.
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

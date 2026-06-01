@@ -1,3 +1,12 @@
+# PROMPT:
+# Generate pytest tests for store metrics calculation including empty stores,
+# all-staff clips, average dwell per zone, queue depth, abandonment rate,
+# zero purchases, and staff exclusion.
+#
+# CHANGES MADE:
+# I rewired the generated tests to use the exact challenge event schema,
+# FastAPI dependency overrides, and assertions for zero-safe metric responses.
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

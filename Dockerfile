@@ -2,14 +2,21 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-api.txt .
 
-# If OpenCV dependencies fail in slim image, uncomment:
-RUN apt-get update && apt-get install -y libglib2.0-0 libgl1 && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir -r requirements-api.txt
 
-COPY . .
+COPY app ./app
+COPY data/store_layout.json ./data/store_layout.json
+
+# Copy POS data for conversion rate calculation
+COPY data/files/ ./data/files/
+
+# Ensure data directory exists for SQLite DB
+RUN mkdir -p /app/data
 
 EXPOSE 8000
 

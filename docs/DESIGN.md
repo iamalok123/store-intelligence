@@ -12,7 +12,7 @@ The system is divided into three major layers:
 ## 3. Architecture Diagram
 ```mermaid
 graph TD
-    A[CCTV Video Clips] -->|YOLOv8 + ByteTrack| B(Detection Pipeline)
+    A[CCTV footage in data/cctv_footage] -->|YOLOv8 + ByteTrack| B(Detection Pipeline)
     B -->|Generates JSONL| C[Event Stream]
     C -->|POST /events/ingest| D(FastAPI Backend)
     D -->|Stores Valid Events| E[(SQLite Database)]
@@ -22,6 +22,7 @@ graph TD
 
 ## 4. Detection Pipeline
 The pipeline relies on `ultralytics` YOLOv8 for person detection and ByteTrack for short-term identity tracking. A custom geometry module (`pipeline/zones.py`) maps the person's bottom-center bounding box coordinate against the `store_layout.json` polygons. This allows us to deterministically emit `ZONE_ENTER`, `ZONE_EXIT`, and `ZONE_DWELL` events.
+The provided MP4 files are kept under `data/cctv_footage/`. Camera IDs are derived from filenames such as `CAM 1.mp4`, and the runnable polygon layout is maintained in `data/store_layout.json` after reviewing the supplied layout workbook in `data/files/`.
 
 ## 5. Event Stream Design
 Events are strictly structured using a predefined schema (`event_id`, `visitor_id`, `event_type`, `timestamp`, `zone_id`, `dwell_ms`). This enforces a contract between the detection pipeline and the API. Unknown schemas are rejected, but batches process via partial success to ensure the stream isn't completely blocked by a single bad event.
@@ -35,6 +36,7 @@ We use SQLite for simplicity and speed. The primary table is `events`, which act
 ## 8. Analytics Logic
 Analytics are calculated on a **session** basis, keyed by `visitor_id`.
 - **Conversion Rate**: Checks if a visitor was in the billing zone within 5 minutes prior to a POS transaction.
+- **POS Matching**: Loads the supplied retail sales CSV from `data/files/`, groups line items into transactions, normalizes the challenge store code (`ST1008`) to `STORE_BLR_002`, and stores matched transactions in `pos_transactions`.
 - **Funnel**: Maps the distinct stages (`ENTRY` -> `ZONE_VISIT` -> `BILLING_QUEUE` -> `PURCHASE`).
 - **Anomalies**: Continuously evaluates rules, such as `queue_depth >= 10` for a CRITICAL alert or 30 minutes of no activity in a zone for a `DEAD_ZONE` warning.
 

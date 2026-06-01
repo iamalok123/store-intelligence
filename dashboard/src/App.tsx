@@ -4,7 +4,8 @@ import { getMetrics, getFunnel, getHeatmap, getAnomalies, getHealth } from './ap
 import { MetricCard } from './components/MetricCard';
 import { FunnelChart } from './components/FunnelChart';
 import { HeatmapGrid } from './components/HeatmapGrid';
-import { AnomalyList, Anomaly } from './components/AnomalyList';
+import { AnomalyList } from './components/AnomalyList';
+import type { Anomaly } from './components/AnomalyList';
 import { HealthStatus } from './components/HealthStatus';
 
 // Update store ID dynamically if needed, for this challenge it is fixed
@@ -41,7 +42,7 @@ function App() {
           getHeatmap(STORE_ID).catch(() => []),
         ]);
         if (fun) setFunnel(fun);
-        if (heat && Array.isArray(heat)) setHeatmap(heat);
+        if (heat?.zones && Array.isArray(heat.zones)) setHeatmap(heat.zones);
       } catch (err) {
         console.error("Error fetching slow data", err);
       }

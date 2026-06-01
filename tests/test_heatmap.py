@@ -2,7 +2,7 @@
 # Generate pytest tests for heatmap analytics using zone visit frequency,
 # average dwell time, 0-100 normalization, and LOW data confidence
 # when fewer than 20 sessions exist.
-#
+
 # CHANGES MADE:
 # I added tests for zero-visit zones, no-event stores, and normalization
 # when one zone has the maximum score.

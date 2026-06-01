@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { AnomalyList, Anomaly } from '../AnomalyList';
+import { AnomalyList } from '../AnomalyList';
+import type { Anomaly } from '../AnomalyList';
 
 describe('AnomalyList', () => {
   it('renders empty state when no anomalies provided', () => {

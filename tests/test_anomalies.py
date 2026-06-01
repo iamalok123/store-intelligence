@@ -2,7 +2,7 @@
 # Generate pytest tests for retail anomaly detection including billing queue spike,
 # conversion drop against historical average, dead zone with no visits in 30 minutes,
 # severity mapping, and suggested_action strings.
-#
+
 # CHANGES MADE:
 # I made the rules deterministic for the challenge,
 # added exact threshold tests, and verified every anomaly includes suggested_action.

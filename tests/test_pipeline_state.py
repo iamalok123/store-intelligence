@@ -1,3 +1,12 @@
+# PROMPT:
+# Generate pytest tests for visitor state tracking covering entry/exit events,
+# zone enter/exit/dwell events, billing queue joins, staff heuristics, and
+# re-entry deduplication.
+#
+# CHANGES MADE:
+# I adapted the tests to the challenge event catalogue, added time-based dwell
+# checks, and verified REENTRY reuses the prior visitor session identity.
+
 import pytest
 from datetime import datetime, UTC
 from pipeline.state import VisitorStateTracker
@@ -170,6 +179,5 @@ def test_reentry_handling():
     
     assert events_new[0]["event_type"] == "ENTRY"
     assert events_new[0]["visitor_id"] == "VIS_03"
-
 
 

@@ -9,7 +9,7 @@ def get_store_metrics(store_id: str, db: Session) -> MetricsResponse:
     # 1. Unique visitors (count distinct visitor_id from non-staff ENTRY events)
     unique_visitors = db.query(func.count(func.distinct(EventDB.visitor_id)))\
         .filter(EventDB.store_id == store_id)\
-        .filter(EventDB.event_type == "ENTRY")\
+        .filter(EventDB.event_type.in_(["ENTRY", "REENTRY"]))\
         .filter(EventDB.is_staff == False)\
         .scalar() or 0
 
