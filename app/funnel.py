@@ -3,7 +3,6 @@ from sqlalchemy import func
 
 from app.db_models import EventDB, PosTransactionDB
 from app.models import FunnelResponse, DropoffDetails
-from app.pos_matcher import load_and_match_pos
 
 def get_store_funnel(store_id: str, db: Session) -> FunnelResponse:
     # 1. Entry stage
@@ -24,10 +23,7 @@ def get_store_funnel(store_id: str, db: Session) -> FunnelResponse:
         .filter(EventDB.event_type == "BILLING_QUEUE_JOIN")\
         .filter(EventDB.is_staff == False).scalar() or 0
 
-    # 4. Purchase stage
-    # POS records have no customer identity, so purchases are counted through
-    # the same 5-minute billing-zone matching rule used by /metrics.
-    load_and_match_pos(db)
+    # 4. Purchase stage (POS data pre-loaded at startup via lifespan)
     purchase_count = db.query(func.count(func.distinct(PosTransactionDB.matched_visitor_id)))\
         .filter(PosTransactionDB.store_id == store_id)\
         .filter(PosTransactionDB.matched_visitor_id.isnot(None))\
