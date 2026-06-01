@@ -1,0 +1,13 @@
+**/.venv
+**/.git
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.env
+**/store_intelligence.db
+**/data/clips/
+**/data/events.jsonl
+**/.coverage
+**/htmlcov
+**/dist
+IMPLEMENTATION.md
