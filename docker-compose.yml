@@ -17,6 +17,23 @@ services:
       POS_DATA_PATH: ${POS_DATA_PATH:-data/files/Brigade_Bangalore_10_April_26.csv}
     volumes:
       - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 10s
+
+  seeder:
+    container_name: store-intelligence-seeder
+    build:
+      context: ./scripts
+      dockerfile: Dockerfile.seeder
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
 
   dashboard:
     container_name: store-intelligence-dashboard
