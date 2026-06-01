@@ -55,9 +55,8 @@ def get_store_metrics(store_id: str, db: Session) -> MetricsResponse:
     if joins > 0:
         abandonment_rate = float(abandons) / float(joins)
 
-    # 5. Conversion rate
-    from app.pos_matcher import load_and_match_pos, calculate_conversion_rate
-    load_and_match_pos(db)
+    # 5. Conversion rate (POS data pre-loaded at startup via lifespan)
+    from app.pos_matcher import calculate_conversion_rate
     conversion_rate = calculate_conversion_rate(store_id, db)
 
     return MetricsResponse(

@@ -49,7 +49,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 
         response = await call_next(request)
         
-        latency_ms = int((time.time() - start_time) * 1000)
+        latency_ms = max(0, int((time.time() - start_time) * 1000))
         status_code = response.status_code
         
         log_data = {

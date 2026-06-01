@@ -1,22 +1,33 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from app.database import init_db, get_db
+from app.database import init_db, get_db, SessionLocal
 from app.models import HealthResponse, MetricsResponse, FunnelResponse, HeatmapResponse, AnomaliesResponse, IngestRequest, IngestResponse
 from app.ingestion import process_ingestion
 from app.metrics import get_store_metrics
 from app.funnel import get_store_funnel
 
-# Initialize DB on startup
-init_db()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Runs once at startup — create tables then pre-load POS data
+    init_db()
+    db = SessionLocal()
+    try:
+        from app.pos_matcher import load_and_match_pos
+        load_and_match_pos(db)
+    finally:
+        db.close()
+    yield
+    # (shutdown logic goes here if ever needed)
 
 from app.logging_config import setup_logging
 
-app = FastAPI(title="Store Intelligence API")
+app = FastAPI(title="Store Intelligence API", lifespan=lifespan)
 setup_logging(app)
 
 cors_origins = [
